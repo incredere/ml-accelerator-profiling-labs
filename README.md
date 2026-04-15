@@ -38,13 +38,13 @@ Simple feedforward neural network trained on FashionMNIST dataset.
 ## Screenshots
 
 ### GPU Information
-![GPU](images/gpu_info.png)
+![GPU](./images/gpu_info.png)
 
 ### Perfetto Timeline
-![Perfetto](images/perfetto_trace.png)
+![Perfetto](./images/perfetto_trace.png)
 
 ### Profiler Output
-![Profiler](images/profiler_output.png)
+![Profiler](./images/profiler_output.png)
 
 ## Project Structure
 
@@ -68,3 +68,13 @@ gpu-profiling-pytorch-lab
 ## Key Learning
 
 GPU profiling helps identify compute bottlenecks in ML workloads and improves training efficiency by optimizing batch size, memory usage, and kernel execution patterns.
+
+## Image layout and helper script
+
+PNG images used by notebooks and the README are stored in the `images/` directory at the repository root. If you find PNG files in the repository root, you can run the included helper script to move them safely into `images/`.
+
+To run the script from PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fix-images.ps1
+```

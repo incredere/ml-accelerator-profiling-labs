@@ -32,5 +32,5 @@ Google Colab GPU
 
 ## Author
 
-Harish Nagunuri  
+Vishwas Somashekara Reddy
 ML Infrastructure | GPU Performance | Kubernetes

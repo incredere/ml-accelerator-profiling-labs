@@ -17,7 +17,8 @@ Level1_gpu_profiling_pytorch/
 ### Level 2 — Mixed Precision Profiling (FP32 vs FP16)
 Compare performance differences between FP32 and mixed precision training using PyTorch AMP.
 
-Status: in progress
+Location:
+Level2_mixed_precision_profiling/
 
 ---
 

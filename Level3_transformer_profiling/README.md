@@ -3,7 +3,7 @@
 **Goal:** Profile a transformer-based model (GPT-2) to understand GPU utilization, memory patterns, and operator performance in large language models.
 
 - Fine-tunes GPT-2 small on a text classification task
-- Captures detailed execution traces using 	orch.profiler
+- Captures detailed execution traces using `torch.profiler`
 - Exports .pt.trace.json for Perfetto analysis
 - Analyzes attention layers, matrix multiplications, and memory bottlenecks
 
@@ -24,7 +24,7 @@
 
 ## Running the lab
 
-1. Open 	ransformer_profiling.ipynb in Colab
+1. Open `transformer_profiling.ipynb` in Colab
 2. Follow the cells to train and profile GPT-2
 3. Download the trace file for local analysis
 4. Use Perfetto to visualize the timeline

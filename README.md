@@ -17,10 +17,16 @@ skills on real training workloads.
 | Level 1 | FeedForward (FashionMNIST) | T4 (Colab) | Self CUDA time total | 287.420 µs |
 | Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | FP32 elapsed time | 1.743 sec |
 | Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | AMP elapsed time | 1.273 sec |
-| Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | Wallclock speedup (AMP vs FP32) | **1.37x** |
-| Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | CUDA time FP32 → AMP | 17.631 ms → 8.476 ms (**2.08x**) |
+| Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | Wallclock speedup (AMP vs FP32) | **1.37×** |
+| Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | CUDA time FP32 → AMP | 17.631 ms → 8.476 ms (**2.08×**) |
+| Level 3 | GPT-2 small | T4 (Colab) | Matmul CUDA share (sgemm) | **35.6%** |
+| Level 3 | GPT-2 small | T4 (Colab) | Attention CUDA share (fmha) | 3.6% |
+| Level 3 | GPT-2 small | T4 (Colab) | Adam optimizer CUDA share | 10.1% |
+| Level 3 | GPT-2 small | T4 (Colab) | Backward / forward time ratio | **2.10×** |
 
-> CUDA-only speedup (2.08x) is higher than wallclock speedup (1.37x) because CPU overhead and data loading are constant across both runs. The GPU kernel efficiency gain from AMP is the real story.
+> CUDA-only speedup (2.08×) is higher than wallclock speedup (1.37×) because CPU overhead and data loading are constant across both runs. The GPU kernel efficiency gain from AMP is the real story.
+
+> Matrix multiply (not attention) is the dominant GPU op in GPT-2 small training. Attention kernels account for only 3.6% of CUDA compute time.
 
 ---
 
@@ -49,7 +55,7 @@ skills on real training workloads.
 - Captures separate trace files: `fp32.pt.trace.json`, `amp.pt.trace.json`
 - Compares elapsed time, CUDA kernel time, and memory usage
 
-**Key finding:** AMP cuts CUDA kernel time by 2.08x by running eligible ops in FP16. Wallclock speedup is 1.37x — lower than CUDA speedup because CPU and data loading overhead is unchanged.
+**Key finding:** AMP cuts CUDA kernel time by 2.08× by running eligible ops in FP16. Wallclock speedup is 1.37× — lower than CUDA speedup because CPU and data loading overhead is unchanged.
 
 📁 [`Level2_mixed_precision_profiling/`](./Level2_mixed_precision_profiling/)
 
@@ -57,11 +63,13 @@ skills on real training workloads.
 
 ### Level 3 — Transformer profiling (GPT-2)
 
-**Goal:** Profile a transformer model to understand attention kernels, LayerNorm, and KV op performance.
+**Goal:** Profile a transformer model to understand which GPU operations dominate — attention, matmul, or optimizer overhead.
 
-- Fine-tunes GPT-2 small using `torch.profiler`
+- Trains GPT-2 small using `torch.profiler`
 - Exports `.pt.trace.json` for Perfetto visualization
-- Analyzes attention layers, matrix multiplications, and memory bottlenecks
+- Breaks down CUDA kernel time by op type
+
+**Key finding:** Matrix multiply (sgemm) takes 35.6% of GPU compute; attention (fmha) is only 3.6%. Backward pass is 2.10× longer than forward.
 
 📁 [`Level3_transformer_profiling/`](./Level3_transformer_profiling/)
 

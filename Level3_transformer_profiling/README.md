@@ -1,16 +1,16 @@
-﻿# Level 3 — Transformer profiling with PyTorch Profiler
+# Level 3 — Transformer profiling with PyTorch Profiler
 
-**Goal:** Profile a transformer-based model (GPT-2) to understand GPU utilization, memory patterns, and operator performance in large language models.
+**Goal:** Profile GPT-2 small to understand which GPU operations dominate transformer training — attention, matrix multiply, or optimizer overhead.
 
-- Fine-tunes GPT-2 small on a text classification task
-- Captures detailed execution traces using `torch.profiler`
-- Exports .pt.trace.json for Perfetto analysis
-- Analyzes attention layers, matrix multiplications, and memory bottlenecks
+- Trains GPT-2 small with `torch.profiler` active
+- Exports `.pt.trace.json` for Perfetto visualization
+- Measures CUDA kernel time split across matmul, attention, and optimizer ops
 
 **Key findings:**
-- Attention mechanisms dominate compute time
-- Memory usage spikes during forward/backward passes
-- Optimizer steps show high CUDA kernel activity
+- Matrix multiply (sgemm) dominates GPU compute: **35.6%** of CUDA time across three kernel variants (tn / nt / nn)
+- Attention (fmha) is only **3.6%** of CUDA compute — not the bottleneck in this workload
+- Adam optimizer accounts for **10.1%** of CUDA time
+- Backward pass takes **2.10×** longer than forward pass
 
 📁 [Transformer profiling notebook](./transformer_profiling.ipynb)  
 📁 [GPT-2 trace file](./gpt2.pt.trace.json)

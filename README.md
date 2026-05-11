@@ -12,7 +12,7 @@ skills on real training workloads.
 ## Results summary
 
 | Lab | Model | Hardware | Metric | Result |
-|-----|-------|----------|--------|--------|
+| --- | --- | --- | --- | --- |
 | Level 1 | FeedForward (FashionMNIST) | T4 (Colab) | Self CPU time total | 80.160 ms |
 | Level 1 | FeedForward (FashionMNIST) | T4 (Colab) | Self CUDA time total | 287.420 µs |
 | Level 2 | FeedForward (FashionMNIST) | T4 (Colab) | FP32 elapsed time | 1.743 sec |
@@ -23,9 +23,13 @@ skills on real training workloads.
 | Level 3 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | Attention share of GPU time | **6.77%** |
 | Level 3 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | Adam optimizer share of GPU time | 20.12% |
 | Level 3 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | Backward / forward ratio (CPU-side) | **1.99x** |
+| Level 4 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | FFN matmul AI / achieved | 146 FLOPs/byte → 1.63 TFLOPS (**compute-bound**) |
+| Level 4 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | Attention QK^T AI / achieved | 16 FLOPs/byte → 0.40 TFLOPS (memory-bound) |
+| Level 4 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | LayerNorm AI / achieved | 1 FLOP/byte → 0.11 TFLOPS (memory-bound) |
+| Level 4 | GPT-2 style (6L, d=512, 8h) | T4 (Colab) | Elementwise AI / achieved | 0.08 FLOP/byte → 0.003 TFLOPS (memory-bound) |
 
 > CUDA-only speedup in Level 2 (2.08x) is higher than wallclock speedup (1.37x) because CPU overhead and data loading are constant across both runs. The GPU kernel efficiency gain from AMP is the real story.
-
+>
 > In Level 3, matmul dominates GPU time at short sequence lengths — "attention is the bottleneck" is a long-context story. The O(T²) attention term only catches the O(T·d²) linear term at much longer sequences than we used here (seq_len=128).
 
 ---
@@ -43,7 +47,7 @@ skills on real training workloads.
 
 **Key finding:** Backward pass consistently takes longer than forward pass. CPU→GPU data transfer latency is minimal relative to compute.
 
-📁 [`Level1_gpu_profiling_pytorch/`](./Level1_gpu_profiling_pytorch/)
+📁 [`Level1_gpu_profiling_pytorch/`](./Level1_gpu_profiling_pytorch)
 
 ---
 
@@ -57,7 +61,7 @@ skills on real training workloads.
 
 **Key finding:** AMP cuts CUDA kernel time by 2.08x by running eligible ops in FP16. Wallclock speedup is 1.37x — lower than CUDA speedup because CPU and data loading overhead is unchanged.
 
-📁 [`Level2_mixed_precision_profiling/`](./Level2_mixed_precision_profiling/)
+📁 [`Level2_mixed_precision_profiling/`](./Level2_mixed_precision_profiling)
 
 ---
 
@@ -76,7 +80,29 @@ skills on real training workloads.
 - **Backward runs 1.99x forward, for the right reason.** Each linear layer launches two sgemms in backward (grad w.r.t. activations + grad w.r.t. weights) versus one in forward. The kernel table confirms it: `sgemm_*_tn` + `sgemm_*_nt` (backward) ≈ 2x `sgemm_*_nn` (forward).
 - **Adam is not free.** ~20% of GPU time is spent in `multi_tensor_apply` kernels. Fused / foreach optimizers exist for a reason.
 
-📁 [`Level3_transformer_profiling/`](./Level3_transformer_profiling/)
+📁 [`Level3_transformer_profiling/`](./Level3_transformer_profiling)
+
+---
+
+### Level 4 — Kernel roofline analysis (GPT-2 on T4)
+
+**Goal:** Move beyond *where* GPU time goes (Level 3) to *whether each operation is using the GPU efficiently*. Apply the Roofline model — the standard framework GPU performance engineers use to decide what to optimize.
+
+- For each kernel category, computes FLOPs from the model architecture and bytes from tensor shapes
+- Cross-references against Level 3's measured kernel times to compute achieved performance
+- Classifies each kernel against the T4's compute roof (8.1 TFLOPS FP32) and memory roof (320 GB/s)
+- Produces a roofline plot showing every kernel relative to the hardware ceiling
+
+**Key findings:**
+
+- **FFN matmul: AI = 146 FLOPs/byte, achieved 1.63 TFLOPS (20% of FP32 peak).** Compute-bound — would benefit most from Tensor Cores via FP16/BF16.
+- **Attention QK^T: AI = 16, just below FP32 ridge of 25.** Memory-bound at S=128; shifts compute-bound at longer sequences (this is why FlashAttention matters more at long context).
+- **LayerNorm: AI = 1, 1.4% of peak.** Severely memory-bound — the fix is kernel fusion, not faster math.
+- **Elementwise: AI = 0.08, 0.03% of peak.** Catastrophically memory-bound — same fix.
+
+**The big idea:** as compute scales faster than bandwidth, more ops become memory-bound. This is why every new GPU generation (Volta → Hopper → Blackwell) ships with more memory bandwidth, not just more FLOPs.
+
+📁 [`Level4_kernel_roofline/`](./Level4_kernel_roofline)
 
 ---
 
@@ -95,16 +121,16 @@ All labs run on **Google Colab** (free T4 GPU). No local setup needed.
 ## What's next
 
 | Lab | Topic | Status |
-|-----|-------|--------|
-| Level 4 | Operator-level breakdown — % CUDA time by op type, scan across sequence lengths | Planned |
-| Level 5 | Distributed training — DDP communication vs compute overlap | Planned |
+| --- | --- | --- |
+| Level 5 | Distributed training — DDP communication vs compute overlap on 2x GPU | Planned |
+| Level 6 | Inference profiling — vLLM TTFT vs throughput, KV cache scaling | Planned |
 
 ---
 
 ## Tools used
 
 | Tool | Purpose |
-|------|---------|
+| --- | --- |
 | PyTorch Profiler | Capturing CPU + CUDA execution traces |
 | Perfetto | Visualizing GPU execution timelines |
 | PyTorch AMP | Mixed precision training (FP16/FP32) |
